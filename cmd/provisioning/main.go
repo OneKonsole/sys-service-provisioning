@@ -13,7 +13,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 )
 
-func Run(order models.Order) {
+func Run(order models.Order) bool {
 
 	// Create a new order
 	// order := models.Order{
@@ -36,7 +36,7 @@ func Run(order models.Order) {
 	// Create a new Kubernetes client
 	client, err := GetKubernetesClientset()
 	if err != nil {
-		panic(err)
+		return false
 	}
 
 	//Check if the namespace exists and create it if it doesn't
@@ -49,7 +49,7 @@ func Run(order models.Order) {
 			},
 		}, metav1.CreateOptions{})
 		if err != nil && err.Error() != fmt.Sprint("namespaces \""+namespace+"\" already exists") {
-			panic(err)
+			return false
 		}
 	}
 
@@ -57,8 +57,10 @@ func Run(order models.Order) {
 	err = tenant.CreateTenant(context.Background(), order, *client, namespace, "default")
 	if err != nil {
 		fmt.Println(err)
-		panic(err)
+		return false
 	}
+
+	return true
 }
 
 // GetKubernetesClientset returns a Kubernetes clientset using the kubeconfig file at the default location.

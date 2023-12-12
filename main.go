@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -53,7 +54,12 @@ func main() {
 					return err
 				}
 				//TODO: Make an ack system
-				provisioning.Run(order)
+				isGood := provisioning.Run(order)
+				if !isGood {
+					fmt.Println("Error while provisioning the cluster " + order.ClusterName)
+					err := errors.New("Error while provisioning the cluster " + order.ClusterName)
+					return err
+				}
 				err = message.Ack(false) // Acknowledge the message
 				if err != nil {
 					fmt.Println(err)
