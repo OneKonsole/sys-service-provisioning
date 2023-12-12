@@ -38,7 +38,7 @@ func main() {
 	defer cancel()
 
 	g, ctx := errgroup.WithContext(ctx)
-	g.SetLimit(2)
+	g.SetLimit(5)
 
 	var blocking chan struct{}
 

@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	kamajiv1alpha1 "github.com/clastix/kamaji/api/v1alpha1"
+	"github.com/onekonsole/sys-service-provisioning/internal"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -123,10 +124,16 @@ func (tenant Tenant) CreateTenant(ctx context.Context, order Order, client kuber
 		},
 	}
 
+	// TODO: Find a way to get an available port number
+	port, err := internal.GetAvailableNodePort(&client)
+	if err != nil {
+		return err
+	}
+
 	// Network profile specifications
 	networkProfileSpec := kamajiv1alpha1.NetworkProfileSpec{
 		Address: "127.0.0.1",
-		Port:    int32(32536),
+		Port:    port,
 		CertSANs: []string{
 			tenant.HostnameManager.FullSubdomain,
 		},
@@ -204,5 +211,3 @@ func (tenant Tenant) CreateTenant(ctx context.Context, order Order, client kuber
 	//fmt.Printf("TenantControlPlane CRDS object created on the Kubernetes cluster: %v", tenant.TenantControlPlane)
 	return nil
 }
-
-// GetTenants => Get all client's tenant requested by a client name on the specified Kubernetes cluster

@@ -48,7 +48,7 @@ func Run(order models.Order) {
 				Name: namespace,
 			},
 		}, metav1.CreateOptions{})
-		if err != nil {
+		if err != nil && err.Error() != fmt.Sprint("namespaces \""+namespace+"\" already exists") {
 			panic(err)
 		}
 	}
