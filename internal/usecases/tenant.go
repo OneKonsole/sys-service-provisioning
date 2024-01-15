@@ -1,36 +1,42 @@
-package models
+package usecases
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strconv"
 
 	kamajiv1alpha1 "github.com/clastix/kamaji/api/v1alpha1"
-	"github.com/onekonsole/sys-service-provisioning/internal"
+	tModel "github.com/onekonsole/sys-service-provisioning/internal/models"
+	"github.com/onekonsole/sys-service-provisioning/internal/repositories/interfaces"
+	iUseCase "github.com/onekonsole/sys-service-provisioning/internal/usecases/interfaces"
+	"github.com/onekonsole/sys-service-provisioning/pkg/models"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
 )
 
-type Tenant struct {
-	TenantControlPlane kamajiv1alpha1.TenantControlPlane `json:"tenant_control_plane"`
-	HostnameManager    HostnameManager                   `json:"hostname_manager"`
+type tenantUseCase struct {
+	tenantRepository interfaces.TenantRepository
+	domain           string
+	exposedIpAdress  string
 }
 
-func NewTenant(HostnameManager HostnameManager) *Tenant {
-	return &Tenant{
-		TenantControlPlane: kamajiv1alpha1.TenantControlPlane{},
-		HostnameManager:    HostnameManager,
+func NewTenantUseCase(tenantRepository interfaces.TenantRepository, domain, exposedIpAdress string) iUseCase.Tenant {
+	return &tenantUseCase{
+		tenantRepository: tenantRepository,
+		domain:           domain,
+		exposedIpAdress:  exposedIpAdress,
 	}
 }
 
 // CreateTenant => Create a tenant requested by an order on the specified Kubernetes cluster
-func (tenant Tenant) CreateTenant(ctx context.Context, order Order, client kubernetes.Clientset, namespace string, datastore string) error {
+func (t *tenantUseCase) CreateTenant(ctx context.Context, order models.Order, namespace string, datastore string) error {
 	// Convert UserID and OrderID to string
-	userID := strconv.Itoa(order.UserID)
+	userID := order.UserID
 	orderID := strconv.Itoa(order.ID)
+
+	hostnameManager := models.NewHostnameManager(t.domain, order.ClusterName, userID)
+	tenant := tModel.NewTenant(*hostnameManager)
 
 	// Get the client kubernetes cluster version
 	// version, err := discovery.NewDiscoveryClientForConfigOrDie(client.RESTClient().Config()).ServerVersion()
@@ -103,7 +109,7 @@ func (tenant Tenant) CreateTenant(ctx context.Context, order Order, client kuber
 	controlPlaneIngress := kamajiv1alpha1.IngressSpec{
 		AdditionalMetadata: additionalMetadata,
 		IngressClassName:   "nginx",
-		Hostname:           tenant.HostnameManager.FullSubdomain,
+		Hostname:           tenant.HostnameManager.FullDomain,
 	}
 
 	controlPlane := kamajiv1alpha1.ControlPlane{
@@ -125,17 +131,18 @@ func (tenant Tenant) CreateTenant(ctx context.Context, order Order, client kuber
 	}
 
 	// TODO: Find a way to get an available port number
-	port, err := internal.GetAvailableNodePort(&client)
+	port, err := t.tenantRepository.FindAvailableNodePort(ctx)
 	if err != nil {
+		fmt.Printf("Error getting an available port number: %v", err)
 		return err
 	}
 
 	// Network profile specifications
 	networkProfileSpec := kamajiv1alpha1.NetworkProfileSpec{
-		Address: "127.0.0.1",
+		Address: t.exposedIpAdress,
 		Port:    port,
 		CertSANs: []string{
-			tenant.HostnameManager.FullSubdomain,
+			tenant.HostnameManager.FullDomain,
 		},
 		ServiceCIDR: "10.96.0.0/16",
 		PodCIDR:     "10.244.0.0/16",
@@ -187,22 +194,22 @@ func (tenant Tenant) CreateTenant(ctx context.Context, order Order, client kuber
 	}
 
 	// Display the TenantControlPlane CRDS object in JSON format
-	tenantControlPlaneJSON, err := json.MarshalIndent(tenant.TenantControlPlane, "", "    ")
+	// tenantControlPlaneJSON, err := json.MarshalIndent(tenant.TenantControlPlane, "", "    ")
+	// if err != nil {
+	// 	fmt.Printf("Error displaying the TenantControlPlane CRDS object in JSON format: %v", err)
+	// 	return err
+	// }
+	// fmt.Printf("TenantControlPlane CRDS object in JSON format: %v", string(tenantControlPlaneJSON))
+
+	// Create the namespace on the Kubernetes cluster
+	err = t.tenantRepository.CreateTenantNamespace(ctx, *tenant)
 	if err != nil {
-		fmt.Printf("Error displaying the TenantControlPlane CRDS object in JSON format: %v", err)
+		fmt.Printf("Error creating the namespace on the Kubernetes cluster: %v", err)
 		return err
 	}
-	fmt.Printf("TenantControlPlane CRDS object in JSON format: %v", string(tenantControlPlaneJSON))
 
-	//TODO: Uncomment when we will know what is the path to the TenantControlPlane CRDS object
 	// Create the TenantControlPlane CRDS object on the Kubernetes cluster
-	_, err = client.CoreV1().RESTClient().Post().
-		AbsPath("/apis/kamaji.clastix.io/v1alpha1").
-		Namespace(namespace).
-		Resource("tenantcontrolplanes").
-		Body(&tenant.TenantControlPlane).
-		DoRaw(ctx)
-
+	err = t.tenantRepository.CreateTenant(ctx, *tenant)
 	if err != nil {
 		fmt.Printf("Error creating TenantControlPlane CRDS object on the Kubernetes cluster: %v", err)
 		return err

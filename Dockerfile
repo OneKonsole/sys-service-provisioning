@@ -14,4 +14,9 @@ FROM gcr.io/distroless/static-debian11:nonroot
 WORKDIR /
 COPY --from=build /go/bin/app .
 USER 65532:65532
-ENTRYPOINT ["/sys-service-provisioning"]
+ENV RABBITMQ_USER=null
+ENV RABBITMQ_PASSWORD=null
+ENV RABBITMQ_HOST=null
+ENV RABBITMQ_QUEUE=null
+ENV RABBITMQ_VHOST=null
+CMD ["/sys-service-provisioning", "-t", "kubeConfig", "-d", "", "-e", "", "-s", "default"]

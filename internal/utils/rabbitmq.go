@@ -1,4 +1,4 @@
-package internal
+package utils
 
 import (
 	"context"
@@ -35,6 +35,11 @@ func NewRabbitClient(conn *amqp.Connection) (RabbitClient, error) {
 		conn: conn,
 		ch:   ch,
 	}, nil
+}
+
+// Qos sets the QoS of the channel
+func (rc RabbitClient) Qos(prefetchCount, prefetchSize int, global bool) error {
+	return rc.ch.Qos(prefetchCount, prefetchSize, global)
 }
 
 // CreateQueue creates a queue with the given name

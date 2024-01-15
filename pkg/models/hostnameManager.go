@@ -4,23 +4,19 @@ import "fmt"
 
 // HostnameManager represents a struct for managing hostnames
 type HostnameManager struct {
-	Domain        string
-	ClientName    string
-	Subdomain     string
-	FullDomain    string // Combination of Subdomain and Domain
-	FullSubdomain string // Combination of ClientName, Subdomain, and Domain
+	Domain      string
+	ClientName  string
+	ClusterName string
+	FullDomain  string // FullDomain is the full domain name of the cluster
 }
 
 // NewHostnameManager is a constructor function for HostnameManager
-func NewHostnameManager(domain, clientName, subdomain string) *HostnameManager {
-	fullDomain := fmt.Sprintf("%s.%s", subdomain, domain)
-	fullSubdomain := fmt.Sprintf("%s.%s.%s", clientName, subdomain, domain)
+func NewHostnameManager(domain, clientName, clusterName string) *HostnameManager {
+	fullDomain := fmt.Sprintf("%s.%s.%s", clusterName, clientName, domain)
 
 	return &HostnameManager{
-		Domain:        domain,
-		ClientName:    clientName,
-		Subdomain:     subdomain,
-		FullDomain:    fullDomain,
-		FullSubdomain: fullSubdomain,
+		Domain:     domain,
+		ClientName: clientName,
+		FullDomain: fullDomain,
 	}
 }

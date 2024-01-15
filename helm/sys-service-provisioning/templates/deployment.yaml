@@ -1,0 +1,95 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "sys-service-provisioning.fullname" . }}
+  labels:
+    {{- include "sys-service-provisioning.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "sys-service-provisioning.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "sys-service-provisioning.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "sys-service-provisioning.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args:
+            - --type={{ .Values.podArgs.type }}
+            {{- if eq .Values.podArgs.type "kubeConfig" }}
+            - --kubeConfig={{ .Values.podArgs.kubeConfig }}
+            {{- end }}
+            - --domain={{ .Values.podArgs.domain }}
+            - --exposedIpAddress={{ .Values.podArgs.exposedIpAddress }}
+            - --datastore={{ .Values.podArgs.datastore }}
+          env:
+            - name: RABBITMQ_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.envSecrets.secretName }}
+                  key: {{ .Values.envSecrets.rabbitmqUsernameKey }}
+            - name: RABBITMQ_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.envSecrets.secretName }}
+                  key: {{ .Values.envSecrets.rabbitmqPasswordKey }}
+            - name: RABBITMQ_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.envSecrets.secretName }}
+                  key: {{ .Values.envSecrets.rabbitmqHostKey }}
+            - name: RABBITMQ_QUEUE
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.envSecrets.secretName }}
+                  key: {{ .Values.envSecrets.rabbitmqQueueKey }}
+            - name: RABBITMQ_VHOST
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.envSecrets.secretName }}
+                  key: {{ .Values.envSecrets.rabbitmqVhostKey }}
+          # ports:
+          #   - name: http
+          #     containerPort: 80
+          #     protocol: TCP
+          # livenessProbe:
+          #   httpGet:
+          #     path: /
+          #     port: http
+          # readinessProbe:
+          #   httpGet:
+          #     path: /
+          #     port: http
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
