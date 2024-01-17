@@ -56,6 +56,18 @@ func (t *tenantUseCase) CreateTenant(ctx context.Context, order models.Order, na
 
 	annotations := map[string]string{}
 
+	if order.HasMonitoring {
+		annotations = map[string]string{
+			"onekonsole.emetral.fr/monitoring":              "enabled",
+			"onekonsole.emetral.fr/monitoring-storage-size": strconv.Itoa(order.MonitoringStorage),
+		}
+
+	} else {
+		annotations = map[string]string{
+			"onekonsole.emetral.fr/monitoring": "disabled",
+		}
+	}
+
 	additionalMetadata := kamajiv1alpha1.AdditionalMetadata{
 		Labels:      labels,
 		Annotations: annotations,
@@ -63,9 +75,10 @@ func (t *tenantUseCase) CreateTenant(ctx context.Context, order models.Order, na
 
 	// Create a metadata object for the tenant
 	meta := metav1.ObjectMeta{
-		Name:      order.ClusterName,
-		Labels:    labels,
-		Namespace: namespace,
+		Name:        order.ClusterName,
+		Labels:      labels,
+		Annotations: annotations,
+		Namespace:   namespace,
 	}
 
 	replicas := int32(1)
