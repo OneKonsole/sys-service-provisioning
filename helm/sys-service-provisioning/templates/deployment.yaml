@@ -34,6 +34,7 @@ spec:
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           args:
+            - /sys-service-provisioning
             - --type={{ .Values.podArgs.type }}
             {{- if eq .Values.podArgs.type "kubeConfig" }}
             - --kubeConfig={{ .Values.podArgs.kubeConfig }}
@@ -42,7 +43,7 @@ spec:
             - --exposedIpAddress={{ .Values.podArgs.exposedIpAddress }}
             - --datastore={{ .Values.podArgs.datastore }}
           env:
-            - name: RABBITMQ_USERNAME
+            - name: RABBITMQ_USER
               valueFrom:
                 secretKeyRef:
                   name: {{ .Values.envSecrets.secretName }}
